@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Pal — Your AI Day Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0e0f14; --surface: #16181f; --surface2: #1e2028;
+  --border: rgba(255,255,255,0.08); --accent: #7c6fcd; --accent2: #5dcaa5;
+  --text: #f0efe8; --muted: #888780; --danger: #e24b4a; --warn: #ef9f27;
+}
+body.light {
+  --bg: #f5f4ef; --surface: #ffffff; --surface2: #eeede8;
+  --border: rgba(0,0,0,0.08); --text: #1a1a18; --muted: #888780;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.header { padding: 1.1rem 2rem; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.logo { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.logo span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.date-badge { font-size: 12px; color: var(--muted); background: var(--surface2); border: 0.5px solid var(--border); padding: 5px 12px; border-radius: 20px; }
+.theme-toggle { background: var(--surface2); border: 0.5px solid var(--border); color: var(--muted); border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.theme-toggle:hover { color: var(--text); }
+.main { display: grid; grid-template-columns: 360px 1fr; flex: 1; }
+.left-panel { border-right: 0.5px solid var(--border); padding: 1.25rem; display: flex; flex-direction: column; gap: 1.1rem; overflow-y: auto; max-height: calc(100vh - 56px); }
+.panel-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; font-weight: 500; margin-bottom: 0.4rem; }
+.api-row { display: flex; gap: 8px; align-items: center; }
+.api-input { flex: 1; background: var(--surface2); border: 0.5px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif; outline: none; }
+.api-input:focus { border-color: var(--accent); }
+.api-input::placeholder { color: var(--muted); }
+.api-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
+.api-dot.on { background: var(--accent2); }
+textarea { width: 100%; background: var(--surface2); border: 0.5px solid var(--border); color: var(--text); border-radius: 10px; padding: 11px 12px; font-size: 13px; font-family: 'DM Sans', sans-serif; line-height: 1.6; resize: none; outline: none; }
+textarea:focus { border-color: var(--accent); }
+textarea::placeholder { color: var(--muted); }
+.stacks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stack-btn { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.stack-btn:hover { border-color: var(--accent); }
+.stack-btn.active { background: rgba(124,111,205,0.15); border-color: var(--accent); }
+.stack-icon { font-size: 16px; margin-bottom: 3px; }
+.stack-name { font-size: 10px; color: var(--muted); font-weight: 500; }
+.stack-btn.active .stack-name { color: var(--accent); }
+.trim-row { display: flex; align-items: center; justify-content: space-between; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.trim-info { display: flex; flex-direction: column; gap: 2px; }
+.trim-title { font-size: 13px; font-weight: 500; }
+.trim-desc { font-size: 11px; color: var(--muted); }
+.toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 20px; cursor: pointer; transition: background 0.2s; border: 0.5px solid var(--border); }
+.toggle input:checked + .toggle-track { background: var(--accent); }
+.toggle-thumb { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform 0.2s; pointer-events: none; }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+.context-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.context-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; padding: 9px 12px; }
+.context-item label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.8px; }
+.context-item select, .context-item input[type="time"] { background: transparent; border: none; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; width: 100%; }
+.context-item select option { background: var(--surface2); color: var(--text); }
+.generate-btn { width: 100%; padding: 13px; background: var(--accent); border: 2px solid #a99ee8; border-radius: 10px; color: white; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; transition: background 0.2s, transform 0.1s; box-shadow: 0 0 0 3px rgba(124,111,205,0.2); }
+.generate-btn:hover { background: #9183d8; }
+.generate-btn:active { transform: scale(0.98); }
+.generate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.demo-note { font-size: 11px; color: var(--muted); text-align: center; }
+.right-panel { padding: 1.5rem 2rem; overflow-y: auto; max-height: calc(100vh - 56px); }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; color: var(--muted); text-align: center; }
+.empty-icon { width: 60px; height: 60px; border-radius: 50%; background: var(--surface); border: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.empty-state p { font-size: 14px; max-width: 240px; line-height: 1.6; }
+.schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.schedule-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
+.mode-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: rgba(124,111,205,0.15); color: var(--accent); border: 0.5px solid rgba(124,111,205,0.3); }
+.reset-btn { font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.reset-btn:hover { color: var(--text); background: var(--surface2); }
+.summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+.summary-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; }
+.summary-num { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }
+.summary-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+.trimmed-section { background: rgba(226,75,74,0.06); border: 0.5px solid rgba(226,75,74,0.2); border-radius: 8px; padding: 10px 14px; margin-bottom: 1.25rem; }
+.trimmed-label { font-size: 10px; color: var(--danger); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 500; }
+.trimmed-item { font-size: 12px; color: var(--muted); padding: 2px 0; }
+.time-block { display: flex; gap: 14px; align-items: flex-start; padding: 0.9rem 0; border-bottom: 0.5px solid var(--border); animation: fadeUp 0.35s ease both; }
+.time-block:last-child { border-bottom: none; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.time-col { min-width: 68px; }
+.time-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+.dur-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.priority-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.p-high { background: var(--danger); }
+.p-med { background: var(--warn); }
+.p-low { background: var(--accent2); }
+.block-title { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+.block-reason { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; }
+.spinner { width: 32px; height: 32px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state p { font-size: 13px; color: var(--muted); }
+.error-msg { background: rgba(226,75,74,0.08); border: 0.5px solid rgba(226,75,74,0.25); border-radius: 10px; padding: 1rem; font-size: 13px; color: #f09595; line-height: 1.6; margin-top: 1rem; }
+.legend { display: flex; gap: 16px; margin-bottom: 1rem; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">Life<span>Pal</span></div>
+    <div class="header-right">
+      <div class="date-badge" id="dateDisplay"></div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">Light mode</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="left-panel">
+      <div>
+        <div class="panel-label">Gemini API Key</div>
+        <div class="api-row">
+          <input class="api-input" type="password" id="apiKey" placeholder="Paste your key here..." />
+          <div class="api-dot" id="apiDot"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Free key at <a href="https://aistudio.google.com" style="color:var(--accent)" target="_blank">aistudio.google.com</a></div>
+      </div>
+
+      <div>
+        <div class="panel-label">Mode</div>
+        <div class="stacks">
+          <div class="stack-btn active" data-mode="normal" onclick="selectMode(this)">
+            <div class="stack-icon">📅</div>
+            <div class="stack-name">Normal Day</div>
+          </div>
+          <div class="stack-btn" data-mode="exam" onclick="selectMode(this)">
+            <div class="stack-icon">📚</div>
+            <div class="stack-name">Exam Week</div>
+          </div>
+          <div class="stack-btn" data-mode="jobhunt" onclick="selectMode(this)">
+            <div class="stack-icon">💼</div>
+            <div class="stack-name">Job Hunt</div>
+          </div>
+          <div class="stack-btn" data-mode="recovery" onclick="selectMode(this)">
+            <div class="stack-icon">🧘</div>
+            <div class="stack-name">Recovery Day</div>
+          </div>
+          <div class="stack-btn" data-mode="social" onclick="selectMode(this)">
+            <div class="stack-icon">🤝</div>
+            <div class="stack-name">Social Day</div>
+          </div>
+          <div class="stack-btn" data-mode="grind" onclick="selectMode(this)">
+            <div class="stack-icon">🔥</div>
+            <div class="stack-name">Full Grind</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-label">Task Trimmer</div>
+        <div class="trim-row">
+          <div class="trim-info">
+            <div class="trim-title">Cut the fluff</div>
+            <div class="trim-desc">AI removes tasks that don't need to happen today</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="trimToggle" checked />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-label">Your tasks & events today</div>
+        <textarea id="tasksInput" rows="7" placeholder="Brain dump everything here...&#10;&#10;- Quiz at 2pm&#10;- Finish essay (due tomorrow)&#10;- Gym&#10;- Reply to professor&#10;- Groceries"></textarea>
+      </div>
+
+      <div>
+        <div class="panel-label">Context</div>
+        <div class="context-grid">
+          <div class="context-item">
+            <label>Energy level</label>
+            <select id="energy">
+              <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="context-item">
+            <label>Day starts at</label>
+            <input type="time" id="startTime" value="08:00" />
+          </div>
+          <div class="context-item">
+            <label>Stress level</label>
+            <select id="stress">
+              <option value="low">Low</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="context-item">
+            <label>Work style</label>
+            <select id="style">
+              <option value="focused">Deep focus</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="flexible">Flexible</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button class="generate-btn" id="genBtn" onclick="generateSchedule()">Generate My Day ↗</button>
+      <div class="demo-note">No API key? Hits demo mode automatically</div>
+    </div>
+
+    <div class="right-panel" id="rightPanel">
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>Choose a mode, add your tasks, and hit Generate to get your personalized day plan</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const now = new Date();
+document.getElementById('dateDisplay').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+
+let isDark = true;
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle('light', !isDark);
+  document.getElementById('themeBtn').textContent = isDark ? 'Light mode' : 'Dark mode';
+}
+
+document.getElementById('apiKey').addEventListener('input', function() {
+  document.getElementById('apiDot').className = 'api-dot' + (this.value.length > 10 ? ' on' : '');
+});
+
+let activeMode = 'normal';
+function selectMode(el) {
+  document.querySelectorAll('.stack-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  activeMode = el.dataset.mode;
+}
+
+const modePrompts = {
+  normal: "Balance academics, personal tasks, and wellbeing equally.",
+  exam: "Prioritize ALL studying and academic tasks above everything else. Minimize distractions. Schedule frequent review sessions and study blocks.",
+  jobhunt: "Prioritize internship applications, resume work, and networking tasks. Treat the job hunt as the main mission today.",
+  recovery: "Keep the schedule light and gentle. Prioritize rest, simple low-effort tasks, and self-care. No intense deep work blocks.",
+  social: "Balance tasks with social commitments. Make time for connecting with people. Don't overload the day with solo work.",
+  grind: "Maximum productivity mode. Pack the schedule efficiently. Minimize unnecessary breaks. Get everything done today — no excuses."
+};
+
+const modeNames = {
+  normal: "Normal Day", exam: "Exam Week", jobhunt: "Job Hunt",
+  recovery: "Recovery Day", social: "Social Day", grind: "Full Grind"
+};
+
+const DEMO_TASKS = `Finish reading chapter 6 for sociology
+Email professor about extension for history essay
+Actually start history essay due soon
+Check internship application status
+Apply to 2 more internships
+Gym maybe 30 min
+Buy groceries
+Meal prep
+Group project message team
+Review notes for tomorrow quiz
+Watch lecture recording
+Do laundry
+Call mom
+Pay rent split utilities with roommates
+Clean desk
+Update resume
+Attend club meeting or skip decide
+Print notes for class
+Check calendar for deadlines
+Plan week`;
+
+const DEMO_SCHEDULE = {
+  trimmed: [
+    "Fix sleep schedule — not a schedulable task, address as a habit over time",
+    "Drink more water — ongoing habit, not a one-time to-do",
+    "Charge laptop — takes 10 seconds, do it right now"
+  ],
+  summary: { total_tasks: 17, focus_hours: 6, break_count: 3 },
+  blocks: [
+    { time: "8:00 AM", duration: "15 min", priority: "high", title: "Morning admin blitz", reason: "Pay rent, check calendar for deadlines, print notes. Three tasks, one sitting — done before your brain warms up." },
+    { time: "8:15 AM", duration: "10 min", priority: "high", title: "Email professor re: history essay extension", reason: "A 5-minute task that could buy you days. Do it first before anything else gets in the way." },
+    { time: "8:30 AM", duration: "90 min", priority: "high", title: "History essay — first draft sprint", reason: "Peak morning focus. Due soon means this is your number one priority. Even 300 words is a real start." },
+    { time: "10:00 AM", duration: "15 min", priority: "low", title: "Break + start laundry", reason: "Two minutes to start a load, then take a real break. It runs itself while you keep working." },
+    { time: "10:15 AM", duration: "60 min", priority: "high", title: "Sociology chapter 6 reading", reason: "Stay in academic mode while your brain is still fresh. Highlights only, move fast." },
+    { time: "11:15 AM", duration: "30 min", priority: "high", title: "Review notes for tomorrow's quiz", reason: "Active recall now while the sociology content is still warm in your memory." },
+    { time: "11:45 AM", duration: "20 min", priority: "medium", title: "Watch lecture recording (2x speed)", reason: "Passive content works well as your morning focus window starts to close." },
+    { time: "12:05 PM", duration: "30 min", priority: "low", title: "Lunch break", reason: "Real food, not junk. You have groceries to buy anyway — keep it simple for now." },
+    { time: "12:35 PM", duration: "40 min", priority: "high", title: "Apply to 2 internships", reason: "You called yourself out on procrastinating. Mid-afternoon is perfect for focused applications." },
+    { time: "1:15 PM", duration: "15 min", priority: "medium", title: "Check app status + update resume", reason: "You're already in career mode. Batch both tasks here while your head is in that space." },
+    { time: "1:30 PM", duration: "20 min", priority: "medium", title: "Group project — message team with deadline ask", reason: "Send a clear, structured message. Not your fault they're quiet, but you need to keep it moving." },
+    { time: "1:50 PM", duration: "30 min", priority: "low", title: "Gym — 30 min only", reason: "You put a question mark. Remove it. Even a short workout completely resets your afternoon energy." },
+    { time: "2:20 PM", duration: "25 min", priority: "low", title: "Groceries run", reason: "Combine with gym trip if nearby. Milk, eggs, something green — you know the list." },
+    { time: "2:45 PM", duration: "15 min", priority: "low", title: "Call mom + reply to texts", reason: "You said it's been a while. 15 minutes of human connection is genuinely worth it." },
+    { time: "3:00 PM", duration: "15 min", priority: "medium", title: "Decide on club meeting + clean desk", reason: "Check your energy. If skipping, send a message so people know. Clear desk in remaining time." },
+    { time: "3:15 PM", duration: "15 min", priority: "low", title: "Meal prep — something simple", reason: "You said no junk. 15 minutes of prep now means a real dinner later." },
+    { time: "3:30 PM", duration: "30 min", priority: "medium", title: "Week planning session", reason: "End the afternoon with a clear view of the week. This is how you stop spiraling — see it all laid out." }
+  ]
+};
+
+async function generateSchedule() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const tasks = document.getElementById('tasksInput').value.trim() || DEMO_TASKS;
+  const energy = document.getElementById('energy').value;
+  const stress = document.getElementById('stress').value;
+  const style = document.getElementById('style').value;
+  const startTime = document.getElementById('startTime').value;
+  const trimEnabled = document.getElementById('trimToggle').checked;
+
+  document.getElementById('genBtn').disabled = true;
+  showLoading();
+
+  if (!apiKey) {
+    setTimeout(() => {
+      renderSchedule(DEMO_SCHEDULE, activeMode);
+      document.getElementById('genBtn').disabled = false;
+    }, 1400);
+    return;
+  }
+
+  const trimInstruction = trimEnabled
+    ? `Before scheduling, identify tasks that genuinely do NOT need to happen TODAY and list them in the "trimmed" array with a brief reason why they can wait. Be selective — only cut things that are truly deferrable.`
+    : `Do not trim any tasks. Include everything in the schedule. Set "trimmed" to an empty array.`;
+
+  const prompt = `You are Life Pal, an intelligent daily planning assistant for a university student.
+
+CURRENT MODE: ${modeNames[activeMode]}
+MODE INSTRUCTION: ${modePrompts[activeMode]}
+
+Student context:
+- Energy level: ${energy}
+- Stress level: ${stress}
+- Preferred work style: ${style}
+- Day starts at: ${startTime}
+
+Tasks for today:
+${tasks}
+
+${trimInstruction}
+
+Return ONLY valid JSON with no markdown formatting, no code blocks, no backticks:
+{
+  "trimmed": ["task name — reason it can wait"],
+  "summary": { "total_tasks": number, "focus_hours": number, "break_count": number },
+  "blocks": [
+    {
+      "time": "9:00 AM",
+      "duration": "45 min",
+      "priority": "high",
+      "title": "Task name",
+      "reason": "Personal, specific one-sentence reason why this is scheduled here."
+    }
+  ]
+}
+
+Rules:
+- Include short breaks between intense tasks
+- Be realistic about how long things actually take
+- Reasons must feel personal and smart, not generic
+- Priority must be exactly: high, medium, or low
+- Schedule tasks in a logical time order starting from the start time`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      }
+    );
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error?.message || 'API request failed');
+    }
+    const data = await res.json();
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    text = text.replace(/```json|```/g, '').trim();
+    renderSchedule(JSON.parse(text), activeMode);
+  } catch(e) {
+    document.getElementById('rightPanel').innerHTML = `<div style="padding:1rem"><div class="error-msg">Something went wrong: ${e.message}<br><br>Double-check your API key and try again. Make sure it is a Gemini API key from aistudio.google.com</div></div>`;
+  } finally {
+    document.getElementById('genBtn').disabled = false;
+  }
+}
+
+function renderSchedule(data, mode) {
+  const { trimmed, summary, blocks } = data;
+  let html = `
+    <div class="schedule-header">
+      <div class="schedule-title">Your Day, Organized</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="mode-tag">${modeNames[mode] || 'Normal Day'}</span>
+        <button class="reset-btn" onclick="resetPanel()">← Reset</button>
+      </div>
+    </div>
+    <div class="summary-bar">
+      <div class="summary-card"><div class="summary-num" style="color:var(--accent)">${summary.total_tasks}</div><div class="summary-lbl">Scheduled</div></div>
+      <div class="summary-card"><div class="summary-num" style="color:var(--accent2)">${summary.focus_hours}h</div><div class="summary-lbl">Focus time</div></div>
+      <div class="summary-card"><div class="summary-num" style="color:var(--warn)">${summary.break_count}</div><div class="summary-lbl">Breaks</div></div>
+    </div>`;
+
+  if (trimmed && trimmed.length > 0) {
+    html += `<div class="trimmed-section"><div class="trimmed-label">Trimmed — not today</div>`;
+    trimmed.forEach(t => { html += `<div class="trimmed-item">✕ ${t}</div>`; });
+    html += `</div>`;
+  }
+
+  html += `<div class="legend">
+    <div class="legend-item"><div class="legend-dot p-high"></div> High priority</div>
+    <div class="legend-item"><div class="legend-dot p-med"></div> Medium</div>
+    <div class="legend-item"><div class="legend-dot p-low"></div> Low</div>
+  </div>`;
+
+  blocks.forEach((b, i) => {
+    const dot = b.priority === 'high' ? 'p-high' : b.priority === 'medium' ? 'p-med' : 'p-low';
+    html += `<div class="time-block" style="animation-delay:${i*0.05}s">
+      <div class="time-col">
+        <div class="time-label">${b.time}</div>
+        <div class="dur-label">${b.duration}</div>
+      </div>
+      <div class="priority-dot ${dot}"></div>
+      <div style="flex:1">
+        <div class="block-title">${b.title}</div>
+        <div class="block-reason">${b.reason}</div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('rightPanel').innerHTML = html;
+}
+
+function showLoading() {
+  document.getElementById('rightPanel').innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Building your personalized day...</p>
+    </div>`;
+}
+
+function resetPanel() {
+  document.getElementById('rightPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>Choose a mode, add your tasks, and hit Generate to get your personalized day plan</p>
+    </div>`;
+}
+</script>
+</body>
+</html>
